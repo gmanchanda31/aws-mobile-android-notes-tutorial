@@ -37,9 +37,12 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
+import com.amazonaws.mobile.client.AWSMobileClient;
 import com.amazonaws.mobile.samples.mynotes.data.Note;
 import com.amazonaws.mobile.samples.mynotes.data.NoteViewHolder;
 import com.amazonaws.mobile.samples.mynotes.data.NotesContentContract;
+import com.amazonaws.mobileconnectors.pinpoint.analytics.AnalyticsClient;
+import com.amazonaws.mobileconnectors.pinpoint.analytics.AnalyticsEvent;
 
 /**
  * An activity representing a list of Notes. This activity
@@ -82,6 +85,9 @@ public class NoteListActivity
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_note_list);
+
+        // Add the Aws mobile hub
+        AWSMobileClient.getInstance().initialize(this).execute();
 
         // Install the application crash handler.  This is only done on the first activity.
         ApplicationCrashHandler.installHandler();
@@ -126,7 +132,7 @@ public class NoteListActivity
 
             private void initialize() {
                 background = new ColorDrawable(Color.RED);
-                xMark = ContextCompat.getDrawable(NoteListActivity.this, R.drawable.ic_clear_24dp);
+                xMark = ContextCompat.getDrawable(NoteListActivity.this, R.drawable.ic_close_black_24dp);
                 xMark.setColorFilter(Color.WHITE, PorterDuff.Mode.SRC_ATOP);
                 xMarkMargin = (int) NoteListActivity.this.getResources().getDimension(R.dimen.ic_clear_margin);
                 initialized = true;
@@ -141,6 +147,15 @@ public class NoteListActivity
             public void onSwiped(RecyclerView.ViewHolder viewHolder, int direction) {
                 final NoteViewHolder noteHolder = (NoteViewHolder) viewHolder;
                 ((NotesAdapter) notesList.getAdapter()).remove(noteHolder);
+
+                // Send Custom Event to Amazon Pinpoint
+                final AnalyticsClient mgr = AWSProvider.getInstance()
+                        .getPinpointManager()
+                        .getAnalyticsClient();
+                final AnalyticsEvent evt = mgr.createEvent("DeleteNote")
+                        .withAttribute("noteId", noteHolder.getNote().getNoteId());
+                mgr.recordEvent(evt);
+                mgr.submitEvents();
             }
 
             @Override
